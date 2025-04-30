@@ -4,7 +4,8 @@
   "scripts": {
     "start": "expo start --dev-client",
     "android": "expo run:android",
-    "ios": "expo run:ios",
+    "ios": "expo run:ios --device",
+    "iosRelease": "expo run:ios --configuration Release --device",
     "web": "expo start --web",
     "eject": "expo eject"
   },

@@ -17,11 +17,43 @@ import {
   createNoUpdateAvailableDirectiveAsync,
 } from '../../common/helpers';
 
+enum UpdateType {
+  NORMAL_UPDATE,
+  ROLLBACK,
+}
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': [
+    'expo-protocol-version',
+    'expo-platform',
+    'expo-runtime-version',
+    'expo-current-update-id',
+    'expo-expect-signature',
+  ].join(', '),
+  'Access-Control-Max-Age': '86400', // 24小时缓存
+};
+
 export default async function manifestEndpoint(req: NextApiRequest, res: NextApiResponse) {
+  // 设置CORS头
+  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+    res.setHeader(key, value);
+  });
+
+  // 处理预检请求
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
+  console.log(`[Manifest] Received ${req.method} request from ${req.headers['user-agent']}`);
+  console.log(`[Manifest] Headers:`, req.headers);
+  console.log(`[Manifest] Query:`, req.query);
+
   if (req.method !== 'GET') {
+    console.error(`[Manifest] Invalid method: ${req.method}`);
     res.statusCode = 405;
-    res.json({ error: 'Expected GET.' });
-    return;
+    return res.json({ error: 'Expected GET.' });
   }
 
   const protocolVersionMaybeArray = req.headers['expo-protocol-version'];
@@ -54,18 +86,25 @@ export default async function manifestEndpoint(req: NextApiRequest, res: NextApi
 
   let updateBundlePath: string;
   try {
+    console.log(
+      `[Manifest] Attempting to get update bundle path for runtime version: ${runtimeVersion}`
+    );
     updateBundlePath = await getLatestUpdateBundlePathForRuntimeVersionAsync(runtimeVersion);
+    console.log(`[Manifest] Found update bundle path: ${updateBundlePath}`);
   } catch (error: any) {
+    console.error(`[Manifest] Error getting update bundle path:`, error);
     res.statusCode = 404;
     res.json({
       error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
     return;
   }
 
-  const updateType = await getTypeOfUpdateAsync(updateBundlePath);
-
   try {
+    console.log(`[Manifest] Getting update type for path: ${updateBundlePath}`);
+    const updateType = await getTypeOfUpdateAsync(updateBundlePath);
+    console.log(`[Manifest] Update type: ${UpdateType[updateType]}`);
     try {
       if (updateType === UpdateType.NORMAL_UPDATE) {
         await putUpdateInResponseAsync(
@@ -92,12 +131,6 @@ export default async function manifestEndpoint(req: NextApiRequest, res: NextApi
     res.json({ error });
   }
 }
-
-enum UpdateType {
-  NORMAL_UPDATE,
-  ROLLBACK,
-}
-
 async function getTypeOfUpdateAsync(updateBundlePath: string): Promise<UpdateType> {
   const directoryContents = await fs.readdir(updateBundlePath);
   return directoryContents.includes('rollback') ? UpdateType.ROLLBACK : UpdateType.NORMAL_UPDATE;
@@ -111,6 +144,10 @@ async function putUpdateInResponseAsync(
   platform: string,
   protocolVersion: number
 ): Promise<void> {
+  // 确保CORS头存在
+  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+    res.setHeader(key, value);
+  });
   const currentUpdateId = req.headers['expo-current-update-id'];
   const { metadataJson, createdAt, id } = await getMetadataAsync({
     updateBundlePath,

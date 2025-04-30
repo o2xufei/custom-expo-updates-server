@@ -1,5 +1,5 @@
 import crypto, { BinaryToTextEncoding } from 'crypto';
-import fsSync from 'fs';
+import { constants } from 'fs';
 import fs from 'fs/promises';
 import mime from 'mime';
 import path from 'path';
@@ -18,7 +18,9 @@ function getBase64URLEncoding(base64EncodedString: string): string {
 export function convertToDictionaryItemsRepresentation(obj: { [key: string]: string }): Dictionary {
   return new Map(
     Object.entries(obj).map(([k, v]) => {
-      return [k, [v, new Map()]];
+      // 强制键名小写以满足结构化头部规范
+      const lowerKey = k.toLowerCase();
+      return [lowerKey, [v, new Map()]];
     })
   );
 }
@@ -41,23 +43,58 @@ export async function getPrivateKeyAsync() {
 }
 
 export async function getLatestUpdateBundlePathForRuntimeVersionAsync(runtimeVersion: string) {
-  const updatesDirectoryForRuntimeVersion = `updates/${runtimeVersion}`;
-  if (!fsSync.existsSync(updatesDirectoryForRuntimeVersion)) {
-    throw new Error('Unsupported runtime version');
-  }
+  try {
+    const updatesDirectoryForRuntimeVersion = path.join(process.cwd(), 'updates', runtimeVersion);
+    
+    // 检查目录是否存在并且可访问
+    try {
+      await fs.access(updatesDirectoryForRuntimeVersion, constants.R_OK);
+    } catch (error) {
+      console.error(`Directory access error: ${error}`);
+      throw new Error(`Unsupported runtime version or directory access denied: ${runtimeVersion}`);
+    }
 
-  const filesInUpdatesDirectory = await fs.readdir(updatesDirectoryForRuntimeVersion);
-  const directoriesInUpdatesDirectory = (
-    await Promise.all(
-      filesInUpdatesDirectory.map(async (file) => {
-        const fileStat = await fs.stat(path.join(updatesDirectoryForRuntimeVersion, file));
-        return fileStat.isDirectory() ? file : null;
-      })
+    const filesInUpdatesDirectory = await fs.readdir(updatesDirectoryForRuntimeVersion);
+    if (!filesInUpdatesDirectory.length) {
+      throw new Error(`No updates found for runtime version: ${runtimeVersion}`);
+    }
+
+    const directoriesInUpdatesDirectory = (
+      await Promise.all(
+        filesInUpdatesDirectory.map(async (file) => {
+          try {
+            const filePath = path.join(updatesDirectoryForRuntimeVersion, file);
+            const fileStat = await fs.stat(filePath);
+            return fileStat.isDirectory() ? file : null;
+          } catch (error) {
+            console.error(`Error processing file ${file}: ${error}`);
+            return null;
+          }
+        })
+      )
     )
-  )
-    .filter(truthy)
-    .sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
-  return path.join(updatesDirectoryForRuntimeVersion, directoriesInUpdatesDirectory[0]);
+      .filter(truthy)
+      .sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+
+    if (!directoriesInUpdatesDirectory.length) {
+      throw new Error(`No valid update directories found for runtime version: ${runtimeVersion}`);
+    }
+
+    const latestUpdatePath = path.join(updatesDirectoryForRuntimeVersion, directoriesInUpdatesDirectory[0]);
+    
+    // 验证最新更新目录的内容
+    try {
+      await fs.access(path.join(latestUpdatePath, 'metadata.json'), constants.R_OK);
+    } catch (error) {
+      console.error(`Metadata file access error: ${error}`);
+      throw new Error(`Latest update directory is invalid or incomplete: ${latestUpdatePath}`);
+    }
+
+    return latestUpdatePath;
+  } catch (error) {
+    console.error(`Error in getLatestUpdateBundlePathForRuntimeVersionAsync: ${error}`);
+    throw error;
+  }
 }
 
 type GetAssetMetadataArg =

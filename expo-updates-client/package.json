@@ -4,18 +4,20 @@
   "scripts": {
     "start": "expo start --dev-client",
     "android": "expo run:android",
-    "ios": "expo run:ios",
+    "ios": "expo run:ios --device",
+    "iosRelease": "expo run:ios --configuration Release --device",
     "web": "expo start --web",
     "eject": "expo eject"
   },
   "dependencies": {
-    "expo": "^52.0.18",
-    "expo-build-properties": "~0.13.1",
-    "expo-constants": "~17.0.3",
-    "expo-status-bar": "~2.0.0",
-    "expo-updates": "~0.26.10",
+    "@react-native-community/netinfo": "^11.4.1",
+    "expo": "~52.0.46",
+    "expo-build-properties": "^0.13.2",
+    "expo-constants": "~17.0.8",
+    "expo-status-bar": "~2.0.1",
+    "expo-updates": "^0.27.4",
     "react": "18.3.1",
-    "react-native": "0.76.5"
+    "react-native": "^0.76.9"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0"

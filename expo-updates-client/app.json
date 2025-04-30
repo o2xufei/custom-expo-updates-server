@@ -6,14 +6,25 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    // 启动屏幕相关参数
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "runtimeVersion": "1",
+    // "updates": {
+    //   "url": "https://etest.rpc-asia.com/recipeUpdate/api/manifest",
+    //   "enabled": true,
+    //   "fallbackToCacheTimeout": 30000,
+    //   "codeSigningCertificate": "./code-signing/certificate.pem",
+    //   "codeSigningMetadata": {
+    //     "keyid": "main",
+    //     "alg": "rsa-v1_5-sha256"
+    //   }
+    // },
     "updates": {
-      "url": "http://localhost:3000/api/manifest",
+      "url": "http://10.135.12.99:3000/recipeUpdate/api/manifest",
       "enabled": true,
       "fallbackToCacheTimeout": 30000,
       "codeSigningCertificate": "./code-signing/certificate.pem",
@@ -22,12 +33,23 @@
         "alg": "rsa-v1_5-sha256"
       }
     },
+    // "updates": {
+    //   "url": "http://localhost:3000/api/manifest",
+    //   "enabled": true,
+    //   "fallbackToCacheTimeout": 30000,
+    //   "codeSigningCertificate": "./code-signing/certificate.pem",
+    //   "codeSigningMetadata": {
+    //     "keyid": "main",
+    //     "alg": "rsa-v1_5-sha256"
+    //   }
+    // },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.test.expo-updates-client"
+      "bundleIdentifier": "com.rich.test.recipe"
+      // "bundleIdentifier": "com.test.expo-updates-client"
     },
     "android": {
       "adaptiveIcon": {

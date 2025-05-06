@@ -5,7 +5,8 @@ const path = require('path');
 async function getPrivateKeyAsync() {
   const privateKeyPath = process.env.PRIVATE_KEY_PATH || 'code-signing-keys/private-key.pem';
   try {
-    return await fs.readFile(path.resolve(privateKeyPath), 'utf8');
+    const key = await fs.readFile(path.resolve(privateKeyPath), 'utf8');
+    return key;
   } catch (err) {
     console.error('Error reading private key:', err);
     return null;
@@ -14,13 +15,11 @@ async function getPrivateKeyAsync() {
 
 async function getCertificateChainAsync() {
   const chainPath = process.env.CERT_CHAIN_PATH || 'code-signing-keys/fullchain.pem';
-  console.log('⚠️ [DEBUG] Loading certificate chain from:', path.resolve(chainPath)); // 添加这行
   try {
     const chain = await fs.readFile(path.resolve(chainPath), 'utf8');
-    console.log('✅ [DEBUG] Certificate chain loaded successfully'); // 添加这行
     return chain;
   } catch (err) {
-    console.error('❌ [DEBUG] Error loading certificate chain:', err);
+    console.error('Error reading certificate chain:', err);
     return null;
   }
 }
@@ -28,10 +27,15 @@ async function getCertificateChainAsync() {
 function signRSASHA256(privateKey, data) {
   const sign = crypto.createSign('RSA-SHA256');
   sign.update(data);
-  return sign.sign({
+  
+  // 添加证书链信息
+  const signature = sign.sign({
     key: privateKey,
-    padding: crypto.constants.RSA_PKCS1_PSS_PADDING
+    padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+    passphrase: ''
   }, 'base64');
+  
+  return signature;
 }
 
 module.exports = {

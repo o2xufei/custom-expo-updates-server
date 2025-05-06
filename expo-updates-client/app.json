@@ -24,13 +24,16 @@
     //   }
     // },
     "updates": {
-      "url": "http://10.135.12.99:3000/recipeUpdate/api/manifest",
+      "url": "http://localhost:3000/recipeUpdate/api/manifest", 
       "enabled": true,
       "fallbackToCacheTimeout": 30000,
       "codeSigningCertificate": "./code-signing/certificate.pem",
       "codeSigningMetadata": {
-        "keyid": "main",
+        "keyid": "main", 
         "alg": "rsa-v1_5-sha256"
+      },
+      "developmentClient": {
+        "signatureValidation": false
       }
     },
     // "updates": {
@@ -48,8 +51,12 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rich.test.recipe"
-      // "bundleIdentifier": "com.test.expo-updates-client"
+      "bundleIdentifier": "com.test.expo-updates-client",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {

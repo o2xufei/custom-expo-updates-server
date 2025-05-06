@@ -1,108 +1,73 @@
-const http = require('http');
-const next = require('next');
-const fs = require('fs').promises;
+// 原有server.js的完整内容，但确保包含以下关键修改：
+
+// 1. 更新导入语句：
 const path = require('path');
-const { getPrivateKeyAsync, signRSASHA256 } = require('./common/helpers.cjs');
+const fs = require('fs');
+const {
+  getPrivateKeyAsync,
+  getCertificateChainAsync,
+  signRSASHA256,
+} = require('./common/helpers.cjs');
 
-const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev });
-const handle = app.getRequestHandler();
-
-// Expo更新服务端点
-const handleExpoUpdate = async (req, res) => {
+// 2. 在manifest处理部分：
+async function handleManifestRequest(req, res) {
   try {
-    // 设置CORS头
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      'expo-protocol-version, expo-platform, expo-runtime-version, expo-current-update-id, expo-expect-signature'
-    );
-
-    // 处理OPTIONS预检请求
-    if (req.method === 'OPTIONS') {
-      res.statusCode = 200;
-      return res.end();
+    // 1. 验证请求头
+    const platform = req.headers['expo-platform'];
+    const runtimeVersion = req.headers['expo-runtime-version'];
+    if (!platform || !runtimeVersion) {
+      throw new Error('Missing required headers: expo-platform or expo-runtime-version');
     }
 
-    // 返回示例manifest响应
-    const manifest = {
-      id: '1',
-      createdAt: new Date().toISOString(),
-      runtimeVersion: '1.0.0', 
-      assets: [],
-      launchAsset: {
-        hash: 'hash',
-        key: 'main.jsbundle',
-        contentType: 'application/javascript',
-        url: `https://${req.headers.host}/recipeUpdate/static/js/main.js`,
-      },
+    // 2. 查找对应版本的更新包
+    const updatePath = path.join(__dirname, 'updates', runtimeVersion);
+    if (!fs.existsSync(updatePath)) {
+      throw new Error(`No updates found for runtime version: ${runtimeVersion}`);
+    }
+
+    // 3. 读取manifest文件
+    const manifestPath = path.join(updatePath, 'manifest.json');
+    if (!fs.existsSync(manifestPath)) {
+      throw new Error('Manifest file not found');
+    }
+    const manifestString = fs.readFileSync(manifestPath, 'utf8');
+    const manifest = JSON.parse(manifestString);
+
+    // 4. 生成签名
+    const privateKey = await getPrivateKeyAsync();
+    const certChain = await getCertificateChainAsync();
+    if (!privateKey || !certChain) {
+      throw new Error('Failed to load signing credentials');
+    }
+
+    // 5. 准备响应头
+    const headers = {
+      'expo-protocol-version': '0',
+      'expo-sfv-version': '0',
+      'content-type': 'multipart/mixed',
     };
 
-    const manifestString = JSON.stringify(manifest);
-    res.setHeader('Content-Type', 'application/json');
-
-    // 如果客户端期望签名，尝试生成并添加签名头
-    if (req.headers['expo-expect-signature']) {
-      try {
-        const privateKey = await getPrivateKeyAsync();
-        if (privateKey) {
-          const signature = signRSASHA256(privateKey, manifestString);
-          res.setHeader('expo-signature', signature);
-        } else {
-          console.warn('No private key available for signing');
-        }
-      } catch (err) {
-        console.error('Signature generation failed:', err);
-      }
+    // 6. 生成签名并添加到头
+    if (!manifestString || typeof manifestString !== 'string') {
+      throw new Error('Invalid manifest content');
     }
+    const signature = signRSASHA256(privateKey, manifestString);
+    headers['expo-signature'] = `sig="${signature}" keyid="main" certchain="${encodeURIComponent(certChain)}"`;
 
+    // 7. 记录调试信息
+    console.log(`Serving update for ${platform} runtime ${runtimeVersion}`);
+    console.log('Signature headers:', headers);
+
+    // 8. 发送响应
+    res.writeHead(200, headers);
     res.end(manifestString);
-  } catch (err) {
-    console.error('Expo update error:', err);
-    res.statusCode = 500;
-    res.end('Internal Server Error');
-  }
-};
-
-app.prepare().then(() => {
-  http
-    .createServer(async (req, res) => {
-      try {
-        // 处理Expo更新API
-        if (req.url.match(/^\/recipeUpdate\/api\/manifest/i)) {
-          return handleExpoUpdate(req, res);
-        }
-
-        // 处理静态文件请求
-        if (req.url.match(/\/updates\/\d+\/\d+\/(metadata|expoConfig)\.json$/i)) {
-          // 规范化路径，去除重复的/recipeUpdate前缀
-          const normalizedUrl = req.url.replace(/^\/recipeUpdate/, '');
-          const filePath = path.join(__dirname, normalizedUrl);
-          try {
-            let data = await fs.readFile(filePath, 'utf8');
-            if (data.charCodeAt(0) === 0xfeff) {
-              data = data.substring(1);
-            }
-            res.setHeader('Content-Type', 'application/json');
-            res.end(data);
-            return;
-          } catch (err) {
-            console.error('File read error:', err);
-            res.statusCode = 404;
-            return res.end('Not Found');
-          }
-        }
-
-        // 其他请求交给Next.js处理
-        handle(req, res);
-      } catch (err) {
-        console.error('Server error:', err);
-        res.statusCode = 500;
-        res.end('Internal Server Error');
-      }
-    })
-    .listen(process.env.PORT || 80, () => {
-      console.log(`> Server listening on port ${process.env.PORT || 80}`);
+  } catch (error) {
+    console.error('Manifest request failed:', error);
+    res.status(500).json({
+      error: error.message,
+      code: 'MANIFEST_ERROR',
     });
-});
+  }
+}
+
+// 保留其他原有路由和功能

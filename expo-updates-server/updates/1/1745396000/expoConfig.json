@@ -2,7 +2,7 @@
   "name": "expo-updates-client",
   "slug": "expo-updates-client",
   "owner": "anonymous",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "orientation": "portrait",
   "icon": "./assets/icon.png",
   "splash": {
@@ -12,7 +12,7 @@
   },
   "runtimeVersion": "1",
   "updates": {
-    "url": "http://localhost:3000/api/manifest",
+    "url": "http://10.135.12.99:3000/recipeUpdate/api/manifest",
     "enabled": true,
     "fallbackToCacheTimeout": 30000
   },

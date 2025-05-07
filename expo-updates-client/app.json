@@ -13,9 +13,10 @@
     },
     "runtimeVersion": "1",
     "updates": {
-      "url": "http://localhost:3000/api/manifest",
+      "url": "http://10.135.12.99:3000/api/manifest",
       "enabled": true,
-      "fallbackToCacheTimeout": 30000,
+      "fallbackToCacheTimeout": 0, // 禁用缓存回退
+      "checkAutomatically": "NEVER", // 每次加载都不检查（手动代码检查）
       "codeSigningCertificate": "./code-signing/certificate.pem",
       "codeSigningMetadata": {
         "keyid": "main",
@@ -27,7 +28,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.test.expo-updates-client"
+      "bundleIdentifier": "com.rich.test.recipe"
     },
     "android": {
       "adaptiveIcon": {

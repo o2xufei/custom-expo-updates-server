@@ -5,6 +5,8 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "iosRelease": "expo run:ios --configuration Release --device",
+    "iosPrebuild": "expo prebuild -p ios",
     "web": "expo start --web",
     "eject": "expo eject"
   },
